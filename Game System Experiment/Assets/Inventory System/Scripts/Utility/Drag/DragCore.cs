@@ -11,14 +11,14 @@ namespace Utility.Drag
     {
         Vector3 startPosition;
         Transform originalParent;
-        IDragContainer<T> source;
+        IDragSource<T> source;
 
         Canvas parentCanvas;
 
         private void Awake()
         {
             parentCanvas = GetComponentInParent<Canvas>();
-            source = GetComponentInParent<IDragContainer<T>>();
+            source = GetComponentInParent<IDragSource<T>>();
         }
 
         public void OnBeginDrag(PointerEventData eventData)
@@ -40,15 +40,15 @@ namespace Utility.Drag
             GetComponent<CanvasGroup>().blocksRaycasts = true;
             transform.SetParent(originalParent, true);
 
-            IDragContainer<T> container;
+            IDragDestination<T> container;
 
-            if (EventSystem.current.IsPointerOverGameObject())
+            if (!EventSystem.current.IsPointerOverGameObject())
             {
-                container = GetContainer(eventData);
+                container = parentCanvas.GetComponent<IDragDestination<T>>();
             }
             else
             {
-                container = null;
+                container = GetContainer(eventData);
             }
 
             if (container != null)
@@ -57,51 +57,111 @@ namespace Utility.Drag
             }
         }
 
-        private IDragContainer<T> GetContainer(PointerEventData eventData)
+        private IDragDestination<T> GetContainer(PointerEventData eventData)
         {
             if (eventData.pointerEnter)
             {
-                var container = eventData.pointerEnter.GetComponentInParent<IDragContainer<T>>();
+                var container = eventData.pointerEnter.GetComponentInParent<IDragDestination<T>>();
                 return container;
             }
             return null;
         }
 
-        private void DragItemInSlot(IDragContainer<T> destination)
+        private void DragItemInSlot(IDragDestination<T> destination)
         {
             if (ReferenceEquals(source, destination)) return;
 
-            if (destination == null || source == null ||
-                destination.GetItem() == null ||
-                ReferenceEquals(destination.GetItem(), source.GetItem()))
+            var destinationContainer = destination as IDragContainer<T>;
+            var sourceContainer = source as IDragContainer<T>;
+
+            if (destinationContainer == null || sourceContainer == null ||
+                destinationContainer.GetItem() == null ||
+                ReferenceEquals(destinationContainer.GetItem(), sourceContainer.GetItem()))
             {
                 SimpleTransfer(destination);
                 return;
             }
 
-            Transfer(source, destination);
+            Transfer(destinationContainer, sourceContainer);
         }
 
 
-        private void SimpleTransfer(IDragContainer<T> destination)
+        private bool SimpleTransfer(IDragDestination<T> destination)
         {
-            print("簡易交換");
             var draggingItem = source.GetItem();
-            source.RemoveItem();
-            destination.AddItem(draggingItem);
+            var draggingNumber = source.GetNumber();
+
+            var acceptable = destination.MaxAcceptable(draggingItem);
+            var toTransfer = Mathf.Min(acceptable, draggingNumber);
+
+            if (toTransfer > 0)
+            {
+                source.RemoveItems(toTransfer);
+                destination.AddItems(draggingItem, toTransfer);
+                return false;
+            }
+            return true;
         }
 
-        private void Transfer(IDragContainer<T> source, IDragContainer<T> destination)
+        private void Transfer(IDragContainer<T> destination, IDragContainer<T> source)
         {
-            print("兩樣交換");
-            var sourceItem = source.GetItem();
-            var destinationItem = destination.GetItem();
+            var removedSourceNumber = source.GetNumber();
+            var removedSourceItem = source.GetItem();
+            var removedDestinationNumber = destination.GetNumber();
+            var removedDestinationItem = destination.GetItem();
 
-            source.RemoveItem();
-            destination.RemoveItem();
+            source.RemoveItems(removedSourceNumber);
+            destination.RemoveItems(removedDestinationNumber);
 
-            source.AddItem(destinationItem);
-            destination.AddItem(sourceItem);
+            var sourceTakeBackNumber = CalculateTakeBack(removedSourceItem, removedSourceNumber, source, destination);
+            var destinationTakeBackNumber = CalculateTakeBack(removedDestinationItem, removedDestinationNumber, destination, source);
+
+            if (sourceTakeBackNumber > 0)
+            {
+                source.AddItems(removedSourceItem, sourceTakeBackNumber);
+                removedSourceNumber -= sourceTakeBackNumber;
+            }
+            if (destinationTakeBackNumber > 0)
+            {
+                destination.AddItems(removedDestinationItem, destinationTakeBackNumber);
+                removedDestinationNumber -= destinationTakeBackNumber;
+            }
+
+            if (source.MaxAcceptable(removedDestinationItem) < removedDestinationNumber ||
+                destination.MaxAcceptable(removedSourceItem) < removedSourceNumber)
+            {
+                destination.AddItems(removedDestinationItem, removedDestinationNumber);
+                source.AddItems(removedSourceItem, removedSourceNumber);
+                return;
+            }
+
+            if (removedDestinationNumber > 0)
+            {
+                source.AddItems(removedDestinationItem, removedDestinationNumber);
+            }
+            if (removedSourceNumber > 0)
+            {
+                destination.AddItems(removedSourceItem, removedSourceNumber);
+            }
+        }
+
+        private int CalculateTakeBack(T removedItem, int removedNumber, IDragContainer<T> removeSource, IDragContainer<T> destination)
+        {
+            var takeBackNumber = 0;
+            var destinationMaxAcceptable = destination.MaxAcceptable(removedItem);
+
+            if (destinationMaxAcceptable < removedNumber)
+            {
+                takeBackNumber = removedNumber - destinationMaxAcceptable;
+
+                var sourceTakeBackAcceptable = removeSource.MaxAcceptable(removedItem);
+
+                if (sourceTakeBackAcceptable < takeBackNumber)
+                {
+                    return 0;
+                }
+            }
+            return takeBackNumber;
         }
     }
 }

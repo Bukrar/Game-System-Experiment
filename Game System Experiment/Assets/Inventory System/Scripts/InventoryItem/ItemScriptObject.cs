@@ -12,7 +12,8 @@ namespace InventoryItem
         [SerializeField] string dispayName = null;
         [SerializeField] [TextArea] string description = null;
         [SerializeField] Sprite icon = null;
-        [SerializeField] bool canStackable = false;
+        [SerializeField] bool stackable = false;
+        [SerializeField] Pickup pickup = null;
 
         static Dictionary<string, ItemScriptObject> itemLookupCache;
 
@@ -37,6 +38,14 @@ namespace InventoryItem
             return itemLookupCache[itemID];
         }
 
+        public Pickup SpawnPickup(Vector3 position, int number)
+        {
+            var pickup = Instantiate(this.pickup);
+            pickup.transform.position = position;
+            pickup.Setup(this, number);
+            return pickup;
+        }
+
         public Sprite GetIcon()
         {
             return icon;
@@ -54,7 +63,7 @@ namespace InventoryItem
 
         public bool GetcanStackable()
         {
-            return canStackable;
+            return stackable;
         }
 
         public string GetDescription()

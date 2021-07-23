@@ -6,34 +6,51 @@ using Utility.Drag;
 
 namespace UI.Item
 {
-    public class ItemSlot : MonoBehaviour, IDragContainer<ItemScriptObject>
+    public class ItemSlot : MonoBehaviour, IItemHolder, IDragContainer<ItemScriptObject>
     {
         [SerializeField] ItemIcon itemIcon = null;
 
         int index;
-        PlayerItem item;
+        ItemScriptObject item;
+        PlayerItem playItem;
 
         public void Setup(PlayerItem item, int index)
         {
-            this.item = item;
+            this.playItem = item;
             this.index = index;
             itemIcon.SetItemIcon(item.GetItemInSlot(index));
         }
 
-        public void AddItem(ItemScriptObject item)
+        public void AddItems(ItemScriptObject item, int number)
         {
-            this.item.AddItemToSlot(index, item);
+            playItem.AddItemToSlot(index, item, number);
         }
 
         public ItemScriptObject GetItem()
         {
-            return item.GetItemInSlot(index);
+            return playItem.GetItemInSlot(index);
         }
 
-        public void RemoveItem()
+        public int GetNumber()
         {
-            this.item.RemoveFromSlot(index);
+            return playItem.GetNumberInSlot(index);
         }
+
+        public int MaxAcceptable(ItemScriptObject item)
+        {
+            if (playItem.HasSpaceFor(item))
+            {
+                return int.MaxValue;
+            }
+            return 0;
+        }
+
+        public void RemoveItems(int number)
+        {
+            playItem.RemoveFromSlot(index, number);
+        }
+
+
 
     }
 }

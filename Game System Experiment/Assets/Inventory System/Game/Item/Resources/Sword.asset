@@ -17,3 +17,4 @@ MonoBehaviour:
   description: Sword is Sword
   icon: {fileID: 21300000, guid: d19901b0ee3c38743a7d383bd484b0b5, type: 3}
   canStackable: 0
+  pickup: {fileID: 1455607627454210035, guid: 9dc0aa027a3f0f544810eb184abd34b3, type: 3}
